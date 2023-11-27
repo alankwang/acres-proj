@@ -1,0 +1,254 @@
+---
+title: "Analysis1"
+author: "Alan Wang"
+date: "2023-06-08"
+output: pdf_document
+---
+```{r}
+# USER DEFINED FUNCTIONS
+# NOT IN FUNCTION:
+"%!in%" <- function(x,table) match(x,table, nomatch = 0) == 0
+# ROTATE MATRIX FUNCTION: 
+rotate <- function(x) t(apply(x, 2, rev))
+#==============================================================================
+#==============================================================================
+# LOAD PACKAGES & SET PACKAGE OPTIONS
+library(Hmisc)    # for describe()
+library(readxl)   # for read_excel().
+library(descr)
+#set descr package option to skip plots by default when using freq() & crossbar().
+options(descr.plot=FALSE)
+library(ggplot2)
+library(tidyverse)
+# https://stats.stackexchange.com/questions/237512/how-to-perform-post-hoc-test-on-lmer-model
+# #https://stats.stackexchange.com/questions/5250/multiple-comparisons-on-a-mixed-effects-model
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(multcomp)
+library(nlme)
+library(e1071)
+library(psych)
+library(merTools)
+library(glmmTMB)
+library(modelr)
+library(brms)
+require(MASS)
+library(glmmTMB)
+library(ggplot2)
+#==============================================================================
+#==============================================================================
+# LOAD DATASET
+#==============================================================================
+ndata = read_excel("/Users/alanwang/Dropbox/Mac/Downloads/REU/NP_Data_Stats_2022-06-07.xlsx", sheet = "Data", 
+        col_types = c("numeric", "text", "numeric", "text", "numeric",
+        "numeric", "text", "text", "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", "numeric", "numeric", "numeric"))
+```
+
+```{r}
+obs_per_mouse <- rdata %>%
+  group_by(Mouse, Peptide, Conc) %>%
+  summarise(NumObs = n())
+
+print(obs_per_mouse)
+str(rdata)
+time.f <- factor(rdata$Day)
+rdata$time <- time.f
+
+rdata %>%
+  group_by(Mouse, Peptide) %>%
+  tally() %>%
+  spread(Mouse, n)
+#mouse 30781 and 46733 are the only ones with <20 observations for their respective peptides
+
+rdata %>%
+  group_by(Mouse, DayC3) %>%
+  tally() %>%
+  spread(Mouse, n)
+
+rdata %>%
+  group_by(Peptide, time) %>%
+  tally() %>%
+  spread(Peptide, n)
+#there are missing observations, seems to be nested interaction
+
+view(rdata)
+rdata$block <- factor(rdata$Mouse)
+
+lin_propst3 <-lm(propst3~Peptide*Day, data = rdata)
+plot(lin_propst3)
+summary(lin_propst3)
+resids <- residuals(lin_propst3)
+bp <- fitdistr(resids, "beta", start = list(shape1 = 1, shape2 = 1))
+
+lin_propst6 <-lm(propst6^.5~Peptide*Day + block, data = rdata)
+plot(lin_propst6)
+#square root transformation seems to improve
+
+lin_intst3 <- lm(intst3~Peptide+Day, data = rdata)
+plot(lin_intst3)
+summary(lin_intst3)
+boxcox(lin_intst3)
+#strange plot pattern that is also seen in the lme
+#log looks a little better after running a boxcox
+
+lin_intst6 <- lm(intst6~Peptide*Day + block, data = rdata)
+plot(lin_intst6)
+summary(lin_intst6)
+#interesting that for st6 alg, square root is needed
+
+lin_propst3y <-lm(propst3y~Peptide+Day + block, data = rdata)
+plot(lin_propst3y)
+#relatively homoskedastic, some pts beyond cook's distance
+
+lin_propst6y <-lm(propst6y~Peptide+Day + block, data = rdata)
+plot(lin_propst6y)
+#pretty normal
+
+lin_intst3y <- lm(intst3y~Peptide+Day, data = rdata)
+plot(lin_intst3y)
+#very normal, except for points that lie out of cook's distance
+
+lin_intst6y <- lm(intst6y~Peptide+Day+block, data = rdata)
+plot(lin_intst6y)
+summary(lin_intst6y)
+#not horrible
+```
+
+```{r}
+#RGD150 VS RGD400
+r1data$block <- factor(r1data$Mouse)
+
+conc <- lm(intst3~PepConc + DayC3 + block, data = r1data)
+plot(conc)
+summary(conc)
+
+conc1 <- lm(propst6^.5~PepConc + DayC3 + block, data = r1data)
+plot(conc1)
+
+intst3_b1 <- (r1data$propst3 * 0.998) + 0.001
+conc2 <- lm(log(intst3_b1)~PepConc + DayC3 + block, data = r1data)
+plot(conc2)
+#sinusoidal trend
+
+conc3 <- lm(intst6^.25~PepConc + DayC3 + block, data = r1data)
+plot(conc3)
+
+```
+
+
+
+```{r}
+model <- lme(propst3~Peptide*DayC3, random=~1|Mouse,data=rdata)
+plot(model)
+#doesnt seem to be too homoskedastic
+summary(model)
+anova(model)
+
+model1 <- lme(propst6~Peptide*DayC3, random=~1|Mouse,data=rdata)
+plot(model)
+#not homoskedastic
+summary(model1)
+anova(model1)
+
+model2 <- lme(intst3~Peptide*DayC3, random=~1|Mouse,data=rdata)
+plot(model2)
+summary(model2)
+anova(model2)
+
+model3 <- lme(intst6~Peptide*DayC3, random=~1|Mouse,data=rdata)
+plot(model3)
+summary(model3)
+anova(model3)
+
+#need to filter out values = 0, 1
+propst3_b <- (rdata$propst3 * 0.998) + 0.001
+rdata$propst3_b <- propst3_b
+glmm_model <- glmmTMB(propst3_b ~ Peptide * Day + (1|Mouse), 
+                      family = beta_family(), 
+                      data = rdata)
+summary(glmm_model)
+
+propst6_b <- (rdata$propst6 * 0.998) + 0.001
+rdata$propst6_b <- propst6_b
+glmm_model1 <- glmmTMB(propst6_b ~ Peptide * Day + (1|Mouse), 
+                      family = beta_family(), 
+                      data = rdata)
+summary(glmm_model1)
+pred <- predict(glmm_model1, newdata = rdata, type = "response")
+residuals <- residuals(glmm_model1)
+plot(pred, residuals, xlab = "pred values", ylab = "resid", main = "scatterplot of res")
+abline(h = 0, col = "red")
+
+intst3_b <- (rdata$intst3 * 0.998) + 0.001
+rdata$intst3_b <- intst3_b
+glmm_model2 <- glmmTMB(intst3_b ~ Peptide + Day + (1|Mouse), 
+                      family = beta_family(), 
+                      data = rdata)
+summary(glmm_model2)
+
+intst6_b <- (rdata$intst6 * 0.998) + 0.001
+rdata$iintst6_b <- intst6_b
+glmm_model3 <- glmmTMB(intst6_b ~ Peptide + Day + (1|Mouse), 
+                      family = beta_family(), 
+                      data = rdata)
+summary(glmm_model3)
+```
+```{r}
+### BETWEEN RGD CONC ###
+glmm_conc <- glmmTMB(propst3_b ~ PepConc * Day + (1|Mouse), 
+                      family = beta_family(), 
+                      data = r1data)
+summary(glmm_conc)
+pred <- predict(glmm_conc, newdata = rdata, type = "response")
+residuals <- residuals(glmm_model1)
+plot(pred, residuals, xlab = "pred values", ylab = "resid", main = "scatterplot of res")
+abline(h = 0, col = "red")
+```
+```{r}
+### SUBSET ANALYSIS
+# RGD always has higher proportion in any form of proportion measure
+ggplot(data = rdata, aes(x = Peptide, y = intst3)) +
+  geom_boxplot()
+
+a <- aov(intst3~Peptide*DayC3, data = rdata)
+anova(a)
+# propst3+6 both have Days4-7 highest prop
+# intst3+6 AND intst3y+6y seem to have decreasing prop as time goes on (leave cell surface?)
+ggplot(data = rdata, aes(x = DayC3, y = intst6y)) +
+  geom_boxplot()
+
+ggplot(data = rdata, aes(x = CE, y = intst3)) +
+  geom_boxplot()
+```
+```{r}
+# look into internalized vs binding pairs (st3 and st6)
+gp <- ggplot(subset(rdata, PepConc != "RAD400"), aes(x = DayC3, y = intst3)) +
+  geom_boxplot()
+gp
+
+
+ggplot(subset(rdata, PepConc != "RAD400" & intst3y < 1), aes(x = DayC3, y = intst3y)) +
+  geom_boxplot()
+
+ggplot(subset(rdata, PepConc != "RAD400"), aes(x = DayC3, y = intst6)) +
+  geom_boxplot()
+
+ggplot(subset(rdata, PepConc != "RAD400"), aes(x = DayC3, y = intst6y)) +
+  geom_boxplot()
+
+# overlay with box plot/line across groups
+# RAD vs RGD + all peptide concentrations (150 + 400)
+gp + 
+  stat_summary(fun = median,
+               geom = "line",
+               aes(group = 1),
+               col = 'red')
+```
+
+
+
+
+

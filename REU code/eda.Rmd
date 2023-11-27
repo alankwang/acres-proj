@@ -1,0 +1,321 @@
+---
+title: "Exploratory"
+author: "Alan Wang"
+date: "2023-06-12"
+output: pdf_document
+---
+
+```{r}
+loc <- factor(rdata$CenterEdgeDesc)
+rdata$Mouse_c <- factor(rdata$Mouse)
+
+# middle
+ggplot(subset(rdata,Nmacroph>1), aes(x = Nmacroph, y = propst3, color = Mouse_c)) +
+  geom_point()
+corr <- cor(rdata$Nmacroph, rdata$propst3)
+corr
+
+# low-middle
+ggplot(subset(rdata,Nmacroph>100), aes(x = Nmacroph, y = propst6, color = Mouse_c)) +
+  geom_point()
+corr1 <- cor(rdata$Nmacroph, rdata$propst6)
+corr1
+
+# high
+ggplot(rdata, aes(x = Nmacroph, y = intst3, color = Mouse_c)) +
+  geom_point()
+corr2 <- cor(rdata$Nmacroph, rdata$intst3)
+corr2
+
+# low
+ggplot(subset(rdata,Nmacroph>100), aes(x = Nmacroph, y = intst6, color = Mouse_c)) +
+  geom_point()
+corr3 <- cor(rdata$Nmacroph, rdata$intst6)
+corr3
+
+# low-middle
+ggplot(subset(rdata,Nmacroph>100), aes(x = Nmacroph, y = propst3y, color = Mouse_c)) +
+  geom_point()
+corr4 <- cor(rdata$Nmacroph, rdata$propst3y)
+corr4
+
+# high-middle
+ggplot(subset(rdata,Nmacroph>100), aes(x = Nmacroph, y = propst6y, color = Mouse_c)) +
+  geom_point()
+corr5 <- cor(rdata$Nmacroph, rdata$propst6y)
+corr5
+
+# middle
+ggplot(rdata, aes(x = Nmacroph, y = intst3y, color = Mouse_c)) +
+  geom_point()
+corr6 <- cor(rdata$Nmacroph, rdata$intst3y)
+corr6
+
+# high
+ggplot(subset(rdata,Nmacroph>100), aes(x = Nmacroph, y = intst6y, color = Mouse_c)) +
+  geom_point()
+corr7 <- cor(rdata$Nmacroph, rdata$intst6y)
+corr7
+
+# Define the breaks and labels
+breaks <- c(0, 25, 100, Inf)  # specify the breaks for intervals
+labels <- c("0-25", "25-100", "100+")  # specify the labels for each interval
+
+# Factor the numerical variable into a categorical variable
+rdata$macro <- cut(rdata$Nmacroph, breaks = breaks, labels = labels, include.lowest = TRUE)
+
+ggplot(rdata, aes(x = macro, y = propst3)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = propst6)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = intst3)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = intst6)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = propst3y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = propst6y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = intst3y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = macro, y = intst6y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+m <- aov(propst3~macro, data=rdata)
+summary(m)
+
+m1 <- aov(propst6~macro, data=rdata)
+summary(m1)
+
+m2 <- aov(intst3~macro, data=rdata)
+summary(m2)
+
+m3 <- aov(intst6~macro, data=rdata)
+summary(m3)
+
+m4 <- aov(propst3y~macro, data=rdata)
+summary(m4)
+
+m5 <- aov(propst6y~macro, data=rdata)
+summary(m5)
+
+m6 <- aov(intst3y~macro, data=rdata)
+summary(m6)
+
+m7 <- aov(intst6y~macro, data=rdata)
+summary(m7)
+```
+
+
+```{r}
+######## CUT OFF NMACROPH AT 25 ###########
+df <- rdata %>% filter(Nmacroph >= 25)
+
+corrf <- cor(df$Nmacroph, df$propst3)
+corrf
+corrf1 <-cor(df$Nmacroph, df$propst6)
+corrf1
+
+corrf2 <- cor(df$Nmacroph, df$intst3)
+corrf2
+corrf3 <- cor(df$Nmacroph, df$intst6)
+corrf3
+
+corrf4 <- cor(df$Nmacroph, df$propst3y)
+corrf4
+corrf5 <-cor(df$Nmacroph, df$propst6y)
+corrf5
+
+corrf6 <- cor(df$Nmacroph, df$intst3y)
+corrf6
+corrf7 <- cor(df$Nmacroph, df$intst6y)
+corrf7
+```
+
+
+```{r}
+# Create a new column 'location_type' with three levels
+rdata$location_type <- NA
+
+# Assign levels based on patterns in 'location_description'
+rdata$location_type[grepl("center", rdata$CenterEdgeDesc, ignore.case = TRUE) &
+                   grepl("edge", rdata$CenterEdgeDesc, ignore.case = TRUE)] <- "both"
+rdata$location_type[grepl("center", rdata$CenterEdgeDesc, ignore.case = TRUE) &
+                  !grepl("edge", rdata$CenterEdgeDesc, ignore.case = TRUE)] <- "center"
+rdata$location_type[grepl("edge", rdata$CenterEdgeDesc, ignore.case = TRUE) &
+                  !grepl("center", rdata$CenterEdgeDesc, ignore.case = TRUE)] <- "edge"
+
+view(rdata)
+result <- aov(intst3y~ location_type, data = rdata)
+summary(result)
+
+#not sig for intst6
+
+ggplot(rdata, aes(x = location_type, y = propst3)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = propst6)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = intst3)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = intst6)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = propst3y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = propst6y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = intst3y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = location_type, y = intst6y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+```
+
+```{r}
+### LOCATION @ FOUR LEVEL
+result <- aov(intst3~ CE, data = rdata)
+summary(result)
+
+ggplot(rdata, aes(x = CE, y = propst3)) +
+  geom_boxplot() +
+  xlab("Group") + 
+  ylab("Value")
+
+ggplot(rdata, aes(x = CE, y = propst6)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = CE, y = intst3)) +
+  geom_boxplot() +
+  xlab("Location") +
+  ylab("intst3")
+
+ggplot(rdata, aes(x = CE, y = intst6)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+# check outliers w.r.t. time
+
+ggplot(rdata, aes(x = CE, y = propst3y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = CE, y = propst6y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+ggplot(rdata, aes(x = CE, y = intst3y)) +
+  geom_boxplot() +
+  xlab("Location") +
+  ylab("intst3y")
+
+ggplot(rdata, aes(x = CE, y = intst6y)) +
+  geom_boxplot() +
+  xlab("Group") +
+  ylab("Value")
+
+```
+```{r}
+ggplot(rdata, aes(x = Magnification, y = propst3)) +
+  geom_point()
+mag <- cor(rdata$Magnification, rdata$propst3)
+mag
+
+ggplot(rdata, aes(x = Magnification, y = propst6)) +
+  geom_point()
+mag1 <- cor(rdata$Magnification, rdata$propst6)
+mag1
+
+ggplot(rdata, aes(x = Magnification, y 2= intst3)) +
+  geom_point()
+mag2 <- cor(rdata$Magnification, rdata$intst3)
+mag2
+
+ggplot(rdata, aes(x = Magnification, y = intst6)) +
+  geom_point()
+mag3 <- cor(rdata$Magnification, rdata$intst6)
+mag3
+
+ggplot(rdata, aes(x = Magnification, y = propst3y)) +
+  geom_point()
+mag4 <- cor(rdata$Magnification, rdata$propst3)
+mag4
+
+ggplot(rdata, aes(x = Magnification, y = propst6y)) +
+  geom_point()
+mag5 <- cor(rdata$Magnification, rdata$propst6)
+mag5
+
+ggplot(rdata, aes(x = Magnification, y = intst3y)) +
+  geom_point()
+mag6 <- cor(rdata$Magnification, rdata$intst3y)
+mag6
+
+ggplot(rdata, aes(x = Magnification, y = intst6y)) +
+  geom_point()
+mag7 <- cor(rdata$Magnification, rdata$intst6)
+mag7
+```
+```{r}
+library(vcd)
+model <- lme(propst3~Peptide*DayC3, random=~1|Mouse,data=rdata)
+model <- aov(propst3~Peptide*DayC3*CE, data = rdata)
+summary(model)
+anova(model)
+modelm <- lme(propst3~Peptide*DayC3+CE, random=~1|Mouse,data=rdata)
+summary(modelm)
+plot(modelm)
+cor_table <- table(rdata$CE, rdata$DayC3)
+
+cramers_v <- assocstats(cor_table)$cramer
+```
+
+

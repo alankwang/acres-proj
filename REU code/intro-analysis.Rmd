@@ -1,0 +1,400 @@
+---
+title: "IntroAnalysis"
+author: "Alan Wang"
+date: "2023-05-24"
+output: pdf_document
+---
+
+```{r}
+# SET OPTIONS, SOURCE CUSTOM FUNCTIONS, & LOAD PACKAGES.
+# Show the working directory
+getwd()
+# Set the working directory so R knows where to find the files for this project
+setwd(getwd())
+# Show files in working directory
+dir()
+# Start with a clean working directory
+rm(list=ls())
+# List objects in workspace.
+ls() 
+#==============================================================================
+#==============================================================================
+# USER DEFINED FUNCTIONS
+# NOT IN FUNCTION:
+"%!in%" <- function(x,table) match(x,table, nomatch = 0) == 0
+# ROTATE MATRIX FUNCTION: 
+rotate <- function(x) t(apply(x, 2, rev))
+#==============================================================================
+#==============================================================================
+# LOAD PACKAGES & SET PACKAGE OPTIONS
+library(Hmisc)    # for describe()
+library(readxl)   # for read_excel().
+library(descr)
+#set descr package option to skip plots by default when using freq() & crossbar().
+options(descr.plot=FALSE)
+library(ggplot2)
+library(tidyverse)
+# https://stats.stackexchange.com/questions/237512/how-to-perform-post-hoc-test-on-lmer-model
+# #https://stats.stackexchange.com/questions/5250/multiple-comparisons-on-a-mixed-effects-model
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(multcomp)
+library(nlme)
+library(e1071)
+library(psych)
+library(merTools)
+library(glmmTMB)
+library(modelr)
+library(brms)
+#==============================================================================
+#==============================================================================
+# LOAD DATASET
+#==============================================================================
+ndata = read_excel("/Users/alanwang/Downloads/REU/NP_Data_Stats_2022-06-07.xlsx", sheet = "Data", 
+        col_types = c("numeric", "text", "numeric", "text", "numeric",
+        "numeric", "text", "text", "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", "numeric", "numeric", "numeric"))
+```
+
+
+```{r}
+# Peptide*DayC3 interaction model for propst3, significant interaction
+modelst3 <- aov(propst3~Peptide*DayC3, data=rdata)
+anova(modelst3)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$propst3)
+```
+```{r}
+# Peptide*DayC3 interaction model for propst6, sig interaction
+modelst6 <- aov(propst6~Peptide*DayC3, data=rdata)
+anova(modelst6)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$propst6)
+# why does RGD actually have lower prop than RAD for days 8-16?
+```
+
+```{r}
+# Peptide*DayC3 interaction model for propst6, interaction is not significant
+modelst3y <- aov(propst3y~Peptide*DayC3, data=rdata)
+anova(modelst3y)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$propst3y)
+
+# try additive model, only Day effect is significant
+modelst3y_add <- aov(propst3y~Peptide+DayC3, data=rdata)
+anova(modelst3y_add)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$propst3y)
+# only for Day 8-16 does RGD have higher prop than RAD, rest is decrease
+# so for this algo, at a longer time period RGD gets more cell binding
+```
+```{r}
+# Peptide*DayC3 interaction model for propst6, interaction not sig
+modelst6y <- aov(propst6y~Peptide*DayC3, data=rdata)
+anova(modelst6y)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$propst6y)
+
+# additive model, both main effects are sig
+modelst6y_add <- aov(propst6y~Peptide+DayC3, data=rdata)
+anova(modelst6y_add)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$propst6y)
+# all see increase in cell binding for RGD in this algo
+```
+
+```{r}
+# interaction not sig
+modelintst3 <- aov(intst3~Peptide*DayC3, data=rdata)
+anova(modelintst3)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$intst3)
+
+modelintst3_add <- aov(intst3~Peptide+DayC3, data=rdata)
+anova(modelintst3_add)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$intst3)
+# normalized with tumor cell, as time goes on prop goes down, RGD higher prop than RAD
+```
+```{r}
+# interaction not sig, main effects are
+modelintst6 <- aov(intst6~Peptide*DayC3, data=rdata)
+anova(modelintst6)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$intst6)
+
+modelintst6_add <- aov(intst6~Peptide+DayC3, data=rdata)
+anova(modelintst6_add)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$intst6)
+plot(modelintst6_add)
+
+#epsilon <- 1e-10  # Small constant
+#nonzero <- rdata$intst6
+#nonzero[nonzero == 0] <- epsilon
+#rdata$intst6_nz <- nonzero
+#boxcox(modelintst6_add)
+# essentially the same pattern compared to other algo
+```
+
+```{r}
+# Day and interaction are significant
+modelintst3y <- aov(intst3y~Peptide*DayC3, data=rdata)
+anova(modelintst3y)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$intst3y)
+# all time periods seem to converge to a similar prop for RGD, RAD is the same pattern (time up, prop down)
+# cell surface binding
+```
+```{r}
+# all is sig
+modelintst6y <- aov(intst6y~Peptide*DayC3, data=rdata)
+anova(modelintst6y)
+interaction.plot(rdata$Peptide, rdata$DayC3, rdata$intst6y)
+# somewhat similar patter as the previous algo, but RGD has higher prop of cell wall binding compared to RAD
+```
+
+```{r}
+modelprop3 <- aov(propst3~PepConc*DayC3, data=rdata)
+anova(modelprop3)
+interaction.plot(rdata$PepConc, rdata$DayC3, rdata$propst3y)
+```
+
+
+
+
+```{r}
+#==============================================================================
+#==============================================================================
+# TAKE A LOOK AT THE DATA
+#==============================================================================
+#==============================================================================
+# Data Management
+names(ndata)
+str(ndata)
+head(ndata)
+epsilon=0.001
+# 2021-08-27: New cyan variables
+ndata$CyanSt3=round((ndata$YellowSt3-ndata$ColTotnpsSt3*(ndata$YellowSt3+ndata$DkBlueSt3+ndata$RedSt3))/(ndata$ColTotnpsSt3+epsilon),3)
+ndata$CyanSt6=round((ndata$YellowSt6-ndata$ColTotnpsSt6*(ndata$YellowSt6+ndata$DkBlueSt6+ndata$RedSt6))/(ndata$ColTotnpsSt6+epsilon),3)
+# SUMMARY STATISTICS FOR ALL VARIABLES
+describe(ndata)
+#==============================================================================
+#==============================================================================
+# INITIAL DATA ANALYSIS
+freq(ndata$Mouse)
+freq(ndata$Peptide)
+freq(ndata$Conc)
+#freq(ndata$ImageID)
+freq(ndata$Day)
+freq(ndata$Magnification)
+freq(ndata$CE)
+freq(ndata$CenterEdgeDesc)
+table=xtabs(~Conc+Peptide, data=ndata)
+addmargins(table)
+table=xtabs(~Mouse+Conc, data=ndata)
+addmargins(table)
+table=xtabs(~Mouse+Peptide, data=ndata)
+addmargins(table)
+table=xtabs(~Mouse+CE, data=ndata)
+addmargins(table)
+rm(table)
+mat=rbind(apply(ndata[,12:25],2,mean),
+          apply(ndata[,12:25],2,var),
+          apply(ndata[,12:25],2,sd),
+          apply(ndata[,12:25],2,quantile),
+          apply(ndata[,12:25],2,skewness),
+          apply(ndata[,12:25],2,kurtosis))
+rownames(mat)=c("Mean","Var","S.D","Min","25thPerc","Median","75thPerc","Max","Skewness","Kurtosis")
+round(mat,4)
+rm(mat)
+#==============================================================================
+#==============================================================================
+# DATA VISUALIZATION WITH BOXPLOTS FOR ALL OUTCOMES
+#==============================================================================
+#==============================================================================
+# DATA DECISIONS
+# IMAGE IS UNIT OF MEASUREMENT
+# PRIMARILY INTERESTED IN DAY 1 - 16
+# STEP 1: RED THRESHOLD OF 20
+# STEP 2: EXCLUDE ALL DAYS > 16
+# ANALYSIS 1: EFFECT OF PEPTIDE ON LOCALIZATION
+# "we posit that the RGD peptide compared to RAD pepide will drive both higher 
+#  binding to cancer cells and internalization into cancer cells over time 
+#  (do not know which timepoint will be optimal), that in the RGD conditions 
+#  there will be evidence of a connection / temporal dependence between cell 
+#  binding and then internalization (first cell binding and then internalization
+#  follows), and that here may be a concentration dependence the RGD conditions 
+#  (the 2 concentrations) with respect to the magnitude of binding and 
+#  internalization (if saturation has not occurred)"
+#==============================================================================
+#==============================================================================
+freq(ndata$Peptide)
+freq(ndata$RedTh)
+freq(ndata$Day)
+#==============================================================================
+#==============================================================================
+# Reduce to RedTh = 20
+rdata=ndata[which(ndata$RedTh==20),]
+freq(rdata$Day)
+# Reduce to Day < 17
+rdata=rdata[which(rdata$Day<17),]
+names(rdata)
+str(rdata)
+#==============================================================================
+#==============================================================================
+### 6 OUTCOME MEASURES ###
+# INSIDE CELL - DARK BLUE
+rdata$propst3=round(rdata$DkBlueSt3/(rdata$YellowSt3+rdata$RedSt3+rdata$DkBlueSt3+rdata$CyanSt3+epsilon),3)
+rdata$propst6=round(rdata$DkBlueSt6/(rdata$YellowSt6+rdata$RedSt6+rdata$DkBlueSt6+rdata$CyanSt6+epsilon),3)
+# TARGETED CELL SURFACE - YELLOW
+rdata$propst3y=round(rdata$YellowSt3/(rdata$YellowSt3+rdata$RedSt3+rdata$DkBlueSt3+rdata$CyanSt3+epsilon),3)
+rdata$propst6y=round(rdata$YellowSt6/(rdata$YellowSt6+rdata$RedSt6+rdata$DkBlueSt6+rdata$CyanSt6+epsilon),3)
+# MEASURE OF INTERNALIZED NANO-PARTICLES NORMALIZED BY TUMOR CELLS
+rdata$intst3=round(rdata$DkBlueSt3/(rdata$GreenSt3+rdata$DkBlueSt3+epsilon),3)
+rdata$intst6=round(rdata$DkBlueSt6/(rdata$GreenSt6+rdata$DkBlueSt6+rdata$YellowSt6+epsilon),3)
+# MEASURE OF INTERNALIZED NANO-PARTICLES NORMALIZED BY TUMOR CELLS -YELLOW
+rdata$intst3y=round(rdata$YellowSt3/(rdata$GreenSt3+rdata$DkBlueSt3+epsilon),3)
+rdata$intst6y=round(rdata$YellowSt6/(rdata$GreenSt6+rdata$DkBlueSt6+rdata$YellowSt6+epsilon),3)
+### END 6 OUTCOME MEASURES ###
+Hmisc::describe(rdata$DkBlueSt3)
+Hmisc::describe(rdata$YellowSt3)
+Hmisc::describe(rdata$GreenSt3)
+Hmisc::describe(rdata$DkBlueSt6)
+Hmisc::describe(rdata$YellowSt6)
+Hmisc::describe(rdata$GreenSt6)
+describe(rdata$DkBlueSt3)
+describe(rdata$YellowSt3)
+describe(rdata$GreenSt3)
+describe(rdata$DkBlueSt6)
+describe(rdata$YellowSt6)
+describe(rdata$GreenSt6)
+describe(rdata$YellowSt3/(rdata$GreenSt3+epsilon))
+#==============================================================================
+#==============================================================================
+# DESCRIPTIVE STATISTICS FOR ORIGINAL VARIABLES
+mat=rbind(apply(rdata[,12:25],2,mean),
+          apply(rdata[,12:25],2,var),
+          apply(rdata[,12:25],2,sd),
+          apply(rdata[,12:25],2,quantile),
+          apply(rdata[,12:25],2,skewness),
+          apply(rdata[,12:25],2,kurtosis))
+rownames(mat)=c("Mean","Var","S.D","Min","25thPerc","Median","75thPerc","Max","Skewness","Kurtosis")
+round(mat,4)
+rm(mat)
+#==============================================================================
+#==============================================================================
+# DESCRIPTIVE STATISTICS FOR COMPUTED OUTCOME VARIABLES
+mat=rbind(apply(rdata[,26:33],2,mean),
+          apply(rdata[,26:33],2,var),
+          apply(rdata[,26:33],2,sd),
+          apply(rdata[,26:33],2,quantile),
+          apply(rdata[,26:33],2,skewness),
+          apply(rdata[,26:33],2,kurtosis))
+rownames(mat)=c("Mean","Var","S.D","Min","25thPerc","Median","75thPerc","Max","Skewness","Kurtosis")
+round(mat,4)
+rm(mat)
+#==============================================================================
+#==============================================================================
+# BREAKDOWN PEPTIDE BY CONCENTRATION: RDG150, RDG400, (RDG150+RDG400), & RAD400
+rdata$Conc=factor(rdata$Conc)
+freq(rdata$Conc)
+rdata$Peptide=factor(rdata$Peptide)
+freq(rdata$Peptide)
+addmargins(xtabs(~Peptide+Conc, data=rdata))
+#==============================================================================
+rdata$PepConc="RAD400"
+rdata$PepConc[which(rdata$Peptide=="RGD" & rdata$Conc=="400")]="RGD400"
+rdata$PepConc[which(rdata$Peptide=="RGD" & rdata$Conc=="150")]="RGD150"
+rdata$PepConc=factor(rdata$PepConc)
+freq(rdata$PepConc)
+freq(rdata$Day)
+addmargins(xtabs(~PepConc+Day, data=rdata))
+addmargins(xtabs(~Peptide+Day, data=rdata))
+#==============================================================================
+#==============================================================================
+# CATEGORIZE DAYS INTO 3 AND 4 GROUPS
+rdata$DayC3="1-3"
+rdata$DayC3[which(rdata$Day%in%c(4:7))]="4-7"
+rdata$DayC3[which(rdata$Day%in%c(8:16))]="8-16"
+rdata$DayC3=factor(rdata$DayC3, ordered=TRUE, levels=c("1-3","4-7","8-16"))
+freq(rdata$DayC3)
+addmargins(xtabs(~PepConc+DayC3, data=rdata))
+addmargins(xtabs(~Peptide+DayC3, data=rdata))
+#==============================================================================
+rdata$DayC4="1-2"
+rdata$DayC4[which(rdata$Day%in%c(3:5))]="3-5"
+rdata$DayC4[which(rdata$Day%in%c(6:8))]="6-8"
+rdata$DayC4[which(rdata$Day%in%c(9:16))]="9-16"
+rdata$DayC4=factor(rdata$DayC4, ordered=TRUE, levels=c("1-2","3-5","6-8","9-16"))
+freq(rdata$DayC4)
+addmargins(xtabs(~PepConc+DayC4, data=rdata))
+addmargins(xtabs(~Peptide+DayC4, data=rdata))
+#==============================================================================
+#==============================================================================
+# CREATE DATASETS FOR COMPARISON PURPOSES
+#==============================================================================
+#==============================================================================
+# RGD150 vs. RGD400 Data
+r1data <- rdata[-which(rdata$PepConc=="RAD400"),]
+r1data$Peptide=factor(r1data$Peptide)
+r1data$PepConc=factor(r1data$PepConc)
+freq(r1data$PepConc)
+freq(r1data$Day)
+addmargins(xtabs(~PepConc+Day, data=r1data))
+freq(r1data$DayC3)
+freq(r1data$DayC4)
+addmargins(xtabs(~PepConc+DayC3, data=r1data))
+addmargins(xtabs(~PepConc+DayC4, data=r1data))
+# DESCRIPTIVE STATISTICS FOR COMPUTED OUTCOME VARIABLES
+mat=rbind(apply(r1data[,26:33],2,mean),
+          apply(r1data[,26:33],2,var),
+          apply(r1data[,26:33],2,sd),
+          apply(r1data[,26:33],2,quantile),
+          apply(r1data[,26:33],2,skewness),
+          apply(r1data[,26:33],2,kurtosis))
+rownames(mat)=c("Mean","Var","S.D","Min","25thPerc","Median","75thPerc","Max","Skewness","Kurtosis")
+round(mat,4)
+rm(mat)
+#==============================================================================
+#==============================================================================
+# RGD150 vs. RAD400 Data
+r2data=rdata[-which(rdata$PepConc=="RGD400"),]
+r2data$Peptide=factor(r2data$Peptide)
+r2data$PepConc=factor(r2data$PepConc)
+freq(r2data$Peptide)
+freq(r2data$Day)
+addmargins(xtabs(~PepConc+Day, data=r2data))
+freq(r2data$DayC3)
+freq(r2data$DayC4)
+addmargins(xtabs(~PepConc+DayC3, data=r2data))
+addmargins(xtabs(~PepConc+DayC4, data=r2data))
+mat=rbind(apply(r2data[,26:33],2,mean),
+          apply(r2data[,26:33],2,var),
+          apply(r2data[,26:33],2,sd),
+          apply(r2data[,26:33],2,quantile),
+          apply(r2data[,26:33],2,skewness),
+          apply(r2data[,26:33],2,kurtosis))
+rownames(mat)=c("Mean","Var","S.D","Min","25thPerc","Median","75thPerc","Max","Skewness","Kurtosis")
+round(mat,4)
+rm(mat)
+#==============================================================================
+#==============================================================================
+# RGD400 vs. RGD400 Data
+r3data=rdata[-which(rdata$PepConc=="RGD150"),]
+r3data$Peptide=factor(r3data$Peptide)
+r3data$PepConc=factor(r3data$PepConc)
+freq(r3data$PepConc)
+freq(r3data$Day)
+addmargins(xtabs(~PepConc+Day, data=r3data))
+freq(r3data$DayC3)
+freq(r3data$DayC4)
+addmargins(xtabs(~PepConc+DayC3, data=r3data))
+addmargins(xtabs(~PepConc+DayC4, data=r3data))
+mat=rbind(apply(r3data[,26:33],2,mean),
+          apply(r3data[,26:33],2,var),
+          apply(r3data[,26:33],2,sd),
+          apply(r3data[,26:33],2,quantile),
+          apply(r3data[,26:33],2,skewness),
+          apply(r3data[,26:33],2,kurtosis))
+rownames(mat)=c("Mean","Var","S.D","Min","25thPerc","Median","75thPerc","Max","Skewness","Kurtosis")
+round(mat,4)
+rm(mat)
+#==============================================================================
+#==============================================================================
+# END OF COMPARISON DATASET CREATION
+#==============================================================================
+#==============================================================================
+```
+
